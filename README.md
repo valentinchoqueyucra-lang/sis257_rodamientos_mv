@@ -2,7 +2,7 @@
 Aplicación Web para la tienda "RODAPRO"
 
 Integrantes:
-Choque Yucra Valentin
+Choque Yucra Valentin,
 Molina Cors Manuel
 
 Descripción del negocio
