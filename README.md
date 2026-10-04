@@ -1,6 +1,10 @@
 # sis257_rodamientos_mv
 Aplicación Web para la tienda "RODAPRO"
 
+Integrantes:
+Choque Yucra Valentin
+Molina Cors Manuel
+
 Descripción del negocio
 
 RODAPRO es una tienda ubicada en la ciudad de Sucre, dedicada a la comercialización de productos y repuestos para diferentes aplicaciones mecánicas. Entre los principales productos que ofrece se encuentran rodamientos, crucetas, chumaceras, maceteros, retenes y descansos.
