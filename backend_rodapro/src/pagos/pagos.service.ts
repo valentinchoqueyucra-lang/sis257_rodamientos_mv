@@ -1,46 +1,25 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { CreatePagoDto } from './dto/create-pago.dto';
-import { UpdatePagoDto } from './dto/update-pago.dto';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { MetodoPago } from '../common/enums';
 import { Pago } from './entities/pago.entity';
 
 @Injectable()
 export class PagosService {
-  constructor(@InjectRepository(Pago) private pagoRepository: Repository<Pago>) {}
-  async create(createPagoDto: CreatePagoDto): Promise<Pago> {
-    let pago = await this.pagoRepository.findOneBy({
-      fecha: createPagoDto.fecha,
-      monto: createPagoDto.monto,
-      metodoPago: createPagoDto.metodoPagp,
-      referencia: createPagoDto.referencia,
-    });
-    if (pago) throw new ConflictException('La pago ya existe');
+  constructor(@InjectRepository(Pago) private readonly repo: Repository<Pago>) {}
 
-    pago = this.pagoRepository.create(createPagoDto);
-    return this.pagoRepository.save(pago);
-  }
-
-  async findAll(): Promise<Pago[]> {
-    return this.pagoRepository.find();
-  }
-
-  async findOne(id: number): Promise<Pago> {
-    const pago = await this.pagoRepository.findOneBy({ id });
-    if (!pago) throw new ConflictException('La pago no existe');
-    return pago;
-  }
-
-  async update(id: number, updatePagoDto: UpdatePagoDto): Promise<Pago> {
-    const pago = await this.findOne(id);
-    Object.assign(pago, updatePagoDto);
-    return this.pagoRepository.save(pago);
-  }
-
-  async remove(id: number): Promise<Pago> {
-    const pago = await this.findOne(id);
-    await this.pagoRepository.softRemove(pago);
-    return pago;
+  /** tipo: 'VENTA' (cobros) | 'COMPRA' (pagos a proveedores). Máx. 500 filas. */
+  listar(f: { tipo?: 'VENTA' | 'COMPRA'; metodoPago?: MetodoPago; desde?: string; hasta?: string }) {
+    const qb = this.repo
+      .createQueryBuilder('pg')
+      .leftJoinAndSelect('pg.usuario', 'u')
+      .orderBy('pg.fecha', 'DESC')
+      .take(500);
+    if (f.tipo === 'VENTA') qb.andWhere('pg.idVenta IS NOT NULL');
+    if (f.tipo === 'COMPRA') qb.andWhere('pg.idCompra IS NOT NULL');
+    if (f.metodoPago) qb.andWhere('pg.metodoPago = :mp', { mp: f.metodoPago });
+    if (f.desde) qb.andWhere(`DATE(pg.fecha AT TIME ZONE 'America/La_Paz') >= :desde`, { desde: f.desde });
+    if (f.hasta) qb.andWhere(`DATE(pg.fecha AT TIME ZONE 'America/La_Paz') <= :hasta`, { hasta: f.hasta });
+    return qb.getMany();
   }
 }
-

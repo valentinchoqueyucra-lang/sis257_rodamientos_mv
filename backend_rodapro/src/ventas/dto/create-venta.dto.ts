@@ -1,69 +1,42 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
-  IsDateString,
-  IsDefined,
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  MaxLength,
-  Min,
+  ArrayMinSize, IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString,
+  MaxLength, Min, ValidateNested,
 } from 'class-validator';
+import { MetodoPago } from '../../common/enums';
+
+export class DetalleVentaDto {
+  @Type(() => Number) @IsInt() @IsPositive()
+  idProducto: number;
+
+  @Type(() => Number) @IsInt() @Min(1)
+  cantidad: number;
+
+  /** Descuento en Bs. sobre toda la línea (no por unidad). */
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  descuento?: number;
+}
 
 export class CreateVentaDto {
-  @ApiProperty()
-  @IsDefined({ message: 'La fecha es obligatoria' })
-  @IsDateString({}, { message: 'La fecha debe ser de tipo fecha' })
-  readonly fecha: Date;
+  /** Opcional: venta al paso sin cliente registrado. */
+  @IsOptional() @Type(() => Number) @IsInt() @IsPositive()
+  idCliente?: number | null;
 
-  @ApiProperty()
-  @IsNotEmpty({ message: 'El numero de documento es obligatorio.' })
-  @IsString({ message: 'El numero de documento debe ser de tipo cadena de texto.' })
-  @MaxLength(50, { message: 'El numero de documento no puede tener mas de 50 caracteres' })
-  @Transform(({ value }): string | undefined => (typeof value === 'string' ? value.trim() : value))
-  readonly numeroDocumento: string;
+  /** Descuento global en Bs. sobre el subtotal. */
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  descuento?: number;
 
-  @ApiProperty()
-  @IsNotEmpty({ message: 'El tipo de documento es obligatorio.' })
-  @IsString({ message: 'El tipo de documento debe ser de tipo cadena de texto.' })
-  @MaxLength(100, { message: 'El tipo de documento no puede tener masa de 100 caracteres' })
-  @Transform(({ value }): string | undefined => (typeof value === 'string' ? value.trim() : value))
-  readonly tipoDocumento: string;
+  @IsEnum(MetodoPago)
+  metodoPago: MetodoPago;
 
-  @ApiProperty()
-  @IsNotEmpty({ message: 'El subtotal es obligatorio.' })
-  @Type(() => Number)
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: 'El subtotal debe ser un número con máximo 2 decimales.' },
-  )
-  @Min(0, { message: 'El precio de compra no puede ser negativo.' })
-  readonly subTotal: number;
+  /** Nº de transacción / comprobante QR. */
+  @IsOptional() @IsString() @MaxLength(100)
+  referencia?: string;
 
-  @ApiProperty()
-  @IsNotEmpty({ message: 'El descuento es obligatorio.' })
-  @Type(() => Number)
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: 'El descuento debe ser un número con máximo 2 decimales.' },
-  )
-  @Min(0, { message: 'El precio de venta no puede ser negativo.' })
-  readonly descuento: number;
+  @IsOptional() @IsString() @MaxLength(255)
+  observacion?: string;
 
-  @ApiProperty()
-  @IsNotEmpty({ message: 'El total es obligatorio.' })
-  @Type(() => Number)
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: 'El total debe ser un número con máximo 2 decimales.' },
-  )
-  @Min(0, { message: 'El total no puede ser negativo.' })
-  readonly total: number;
-
-  @ApiProperty()
-  @IsNotEmpty({ message: 'El estado es obligatorio.' })
-  @IsString({ message: 'La estado debe ser de tipo cadena de texto.' })
-  @MaxLength(30, { message: 'La estado no puede tener mas de 30 caracteres' })
-  @Transform(({ value }): string | undefined => (typeof value === 'string' ? value.trim() : value))
-  readonly estado: string;
+  @IsArray() @ArrayMinSize(1, { message: 'La venta debe tener al menos un producto' })
+  @ValidateNested({ each: true }) @Type(() => DetalleVentaDto)
+  detalles: DetalleVentaDto[];
 }

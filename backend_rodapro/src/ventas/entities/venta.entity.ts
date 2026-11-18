@@ -1,45 +1,57 @@
 import {
-  Column,
-  CreateDateColumn,
-  DeleteDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  Check, Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, Relation,
 } from 'typeorm';
+import { BaseAuditEntity } from '../../common/base-audit.entity';
+import { decimalTransformer } from '../../common/transformers';
+import { Cliente } from '../../clientes/entities/cliente.entity';
+import { Usuario } from '../../usuarios/entities/usuario.entity';
+import { Pago } from '../../pagos/entities/pago.entity';
+import { DetalleVenta } from './detalle-venta.entity';
 
+/** estado: true = vigente, false = anulada. */
 @Entity('ventas')
-export class Venta {
-  @PrimaryGeneratedColumn('identity', { name: 'id_venta' })
+@Check('ck_ventas_montos_no_negativos', '"total" >= 0 AND "descuento" >= 0')
+export class Venta extends BaseAuditEntity {
+  @PrimaryGeneratedColumn({ name: 'id_venta' })
   id: number;
 
-  @Column('date')
+  @Column({ name: 'id_cliente', type: 'int', nullable: true })
+  idCliente: number | null;
+
+  @ManyToOne(() => Cliente, { nullable: true })
+  @JoinColumn({ name: 'id_cliente' })
+  cliente: Relation<Cliente> | null;
+
+  @Column({ name: 'id_usuario', type: 'int' })
+  idUsuario: number;
+
+  @ManyToOne(() => Usuario, { nullable: false })
+  @JoinColumn({ name: 'id_usuario' })
+  usuario: Relation<Usuario>;
+
+  @Column({ type: 'timestamptz', default: () => 'now()' })
   fecha: Date;
 
-  @Column('varchar', { length: 50, name: 'numero_documento' })
-  numeroDocumento: string;
+  /** Suma de los subtotales de línea (ya con descuento por línea). */
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, transformer: decimalTransformer })
+  subtotal: number;
 
-  @Column('varchar', { length: 100, name: 'tipo_documento' })
-  tipoDocuemnto: string;
-
-  @Column({ type: 'decimal', precision: 12, scale: 2, name: 'subtotal' })
-  subTotal: number;
-
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  /** Descuento global (Bs.) sobre el subtotal. */
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, transformer: decimalTransformer })
   descuento: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, transformer: decimalTransformer })
   total: number;
 
-  @Column('varchar', { length: 30 })
-  estado: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  observacion: string | null;
 
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  fechaCreacion: Date;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  motivoAnulacion: string | null;
 
-  @UpdateDateColumn({ name: 'fecha_modificacion' })
-  fechaModificacion: Date;
+  @OneToMany(() => DetalleVenta, (d) => d.venta)
+  detalles: Relation<DetalleVenta>[];
 
-  @DeleteDateColumn({ name: 'fecha_eliminacion' })
-  fechaEliminacion: Date;
+  @OneToMany(() => Pago, (p) => p.venta)
+  pagos: Relation<Pago>[];
 }
-

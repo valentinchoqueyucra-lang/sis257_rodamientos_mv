@@ -16,6 +16,8 @@ import { ComprasModule } from './compras/compras.module';
 import { MovimientosInventarioModule } from './movimientos-inventario/movimientos-inventario.module';
 import { PagosModule } from './pagos/pagos.module';
 import { ProductosModule } from './productos/productos.module';
+import { ProveedoresModule } from './proveedores/proveedores.module';
+import { ReportesModule } from './reportes/reportes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { VentasModule } from './ventas/ventas.module';
 
@@ -43,10 +45,12 @@ import { VentasModule } from './ventas/ventas.module';
     CategoriasModule,
     ProductosModule,
     ClientesModule,
+    ProveedoresModule,
     VentasModule,
     ComprasModule,
     PagosModule,
     MovimientosInventarioModule,
+    ReportesModule,
     CatalogoModule,
   ],
   providers: [
