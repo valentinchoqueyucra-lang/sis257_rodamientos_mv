@@ -1,42 +1,29 @@
-import {
-  Column,
-  CreateDateColumn,
-  DeleteDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseAuditEntity } from '../../common/base-audit.entity';
+import { TipoDocumento } from '../../common/enums';
 
 @Entity('clientes')
-export class Cliente {
-  @PrimaryGeneratedColumn('identity', { name: 'id_cliente' })
+export class Cliente extends BaseAuditEntity {
+  @PrimaryGeneratedColumn({ name: 'id_cliente' })
   id: number;
 
-  @Column('varchar', { length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   nombre: string;
 
-  @Column('varchar', { length: 100 })
-  apellido: string;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  apellido: string | null;
 
-  @Column('varchar', { length: 30, name: 'ci_nit' })
+  /** Tipo del documento guardado en `ciNit` (CI, NIT, carnet de extranjero o pasaporte). */
+  @Column({ type: 'enum', enum: TipoDocumento, enumName: 'clientes_tipo_documento_enum', default: TipoDocumento.CI })
+  tipoDocumento: TipoDocumento;
+
+  /** Número del documento (único en todos los tipos). */
+  @Column({ type: 'varchar', length: 30, unique: true })
   ciNit: string;
 
-  @Column('varchar', { length: 30 })
-  telefono: string;
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  telefono: string | null;
 
-  @Column('varchar', { length: 100 })
-  direccion: string;
-
-  @Column('varchar', { length: 30 })
-  estado: string;
-
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  fechaCreacion: Date;
-
-  @UpdateDateColumn({ name: 'fecha_modificacion' })
-  fechaModificacion: Date;
-
-  @DeleteDateColumn({ name: 'fecha_eliminacion' })
-  fechaEliminacion: Date;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  direccion: string | null;
 }
-

@@ -1,37 +1,18 @@
-import {
-  Column,
-  CreateDateColumn,
-  DeleteDateColumn,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn, Relation } from 'typeorm';
+import { BaseAuditEntity } from '../../common/base-audit.entity';
 import { Producto } from '../../productos/entities/producto.entity';
 
 @Entity('categorias')
-export class Categoria {
-  @PrimaryGeneratedColumn('identity', { name: 'id_categoria' })
+export class Categoria extends BaseAuditEntity {
+  @PrimaryGeneratedColumn({ name: 'id_categoria' })
   id: number;
 
-  @Column('varchar', { length: 100 })
+  @Column({ type: 'varchar', length: 100, unique: true })
   nombre: string;
 
-  @Column('varchar', { length: 255 })
-  descripcion: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  descripcion: string | null;
 
-  @Column('boolean', { default: true })
-  estado: boolean;
-
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  fechaCreacion: Date;
-
-  @UpdateDateColumn({ name: 'fecha_modificacion' })
-  fechaModificacion: Date;
-
-  @DeleteDateColumn({ name: 'fecha_eliminacion' })
-  fechaEliminacion: Date;
-
-  @OneToMany(() => Producto, producto => producto.categoria)
-  productos: Producto[];
+  @OneToMany(() => Producto, (p) => p.categoria)
+  productos: Relation<Producto>[];
 }
