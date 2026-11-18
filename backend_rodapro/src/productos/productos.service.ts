@@ -13,7 +13,7 @@ export class ProductosService extends CrudService<Producto> {
     @InjectRepository(Producto) repo: Repository<Producto>,
     private readonly dataSource: DataSource,
   ) {
-    super(repo, 'Producto', ['categoria']);
+    super(repo, 'Producto', { categoria: true });
   }
 
   /** Búsqueda por código, nombre o marca; opcionalmente solo activos. */
