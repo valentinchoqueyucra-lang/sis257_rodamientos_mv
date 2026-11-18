@@ -1,50 +1,69 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { CreateProductoDto } from './dto/create-producto.dto';
-import { UpdateProductoDto } from './dto/update-producto.dto';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { CrudService } from '../common/crud.service';
+import { ReferenciaTipo, TipoMovimiento } from '../common/enums';
+import { MovimientoInventario } from '../movimientos-inventario/entities/movimiento-inventario.entity';
+import { CreateProductoDto } from './dto/create-producto.dto';
 import { Producto } from './entities/producto.entity';
 
 @Injectable()
-export class ProductosService {
-  constructor(@InjectRepository(Producto) private productoRepository: Repository<Producto>) {}
-  async create(createProductoDto: CreateProductoDto): Promise<Producto> {
-    let producto = await this.productoRepository.findOneBy({
-      codigo: createProductoDto.codigo,
-      nombre: createProductoDto.nombre,
-      descripcion: createProductoDto.descripcion,
-      marca: createProductoDto.marca,
-      precioCompra: createProductoDto.precioCompra,
-      precioVenta: createProductoDto.precioVenta,
-      stock: createProductoDto.stock,
-      stockMinimo: createProductoDto.stockMinimo,
-      estado: createProductoDto.estado,
+export class ProductosService extends CrudService<Producto> {
+  constructor(
+    @InjectRepository(Producto) repo: Repository<Producto>,
+    private readonly dataSource: DataSource,
+  ) {
+    super(repo, 'Producto', ['categoria']);
+  }
+
+  /** Búsqueda por código, nombre o marca; opcionalmente solo activos. */
+  async buscar(soloActivos = false, q?: string, idCategoria?: number) {
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.categoria', 'c')
+      .orderBy('p.nombre', 'ASC');
+    if (soloActivos) qb.andWhere('p.estado = true');
+    if (idCategoria) qb.andWhere('p.idCategoria = :idCategoria', { idCategoria });
+    if (q?.trim()) {
+      qb.andWhere('(p.codigo ILIKE :q OR p.nombre ILIKE :q OR p.marca ILIKE :q)', {
+        q: `%${q.trim()}%`,
+      });
+    }
+    return qb.getMany();
+  }
+
+  stockBajo() {
+    return this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.categoria', 'c')
+      .where('p.estado = true')
+      .andWhere('p.stock <= p.stockMinimo')
+      .orderBy('p.stock', 'ASC')
+      .getMany();
+  }
+
+  /** Crea el producto y, si trae stock inicial, deja su movimiento en el kardex. */
+  async create(dto: CreateProductoDto, userId?: number): Promise<Producto> {
+    const id = await this.dataSource.transaction(async (m) => {
+      const stock = dto.stock ?? 0;
+      const producto = await m.save(m.create(Producto, { ...dto, stock }));
+      if (stock > 0 && userId) {
+        await m.save(
+          m.create(MovimientoInventario, {
+            idProducto: producto.id,
+            idUsuario: userId,
+            tipoMovimiento: TipoMovimiento.ENTRADA,
+            cantidad: stock,
+            referenciaTipo: ReferenciaTipo.STOCK_INICIAL,
+            referenciaId: producto.id,
+            stockAnterior: 0,
+            stockResultante: stock,
+            observacion: 'Stock inicial',
+          }),
+        );
+      }
+      return producto.id;
     });
-    if (producto) throw new ConflictException('El producto ya existe');
-
-    producto = this.productoRepository.create(createProductoDto);
-    return this.productoRepository.save(producto);
-  }
-
-  async findAll(): Promise<Producto[]> {
-    return this.productoRepository.find();
-  }
-
-  async findOne(id: number): Promise<Producto> {
-    const producto = await this.productoRepository.findOneBy({ id });
-    if (!producto) throw new ConflictException('El producto no existe');
-    return producto;
-  }
-
-  async update(id: number, updateProductoDto: UpdateProductoDto): Promise<Producto> {
-    const producto = await this.findOne(id);
-    Object.assign(producto, updateProductoDto);
-    return this.productoRepository.save(producto);
-  }
-
-  async remove(id: number): Promise<Producto> {
-    const producto = await this.findOne(id);
-    await this.productoRepository.softRemove(producto);
-    return producto;
+    return this.findOne(id);
   }
 }

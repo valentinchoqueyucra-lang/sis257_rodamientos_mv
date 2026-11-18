@@ -1,41 +1,60 @@
 import { Module } from '@nestjs/common';
-import { createObserveModule } from '@nestjs/observe';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { CategoriasModule } from './categorias/categorias.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsuariosModule } from './usuarios/usuarios.module';
-import { ProductosModule } from './productos/productos.module';
-import { ClientesModule } from './clientes/clientes.module';
-import { PagosModule } from './pagos/pagos.module';
-import { VentasModule } from './ventas/ventas.module';
+import { AuditContextInterceptor } from './common/audit-context.interceptor';
+import { AuditSubscriber } from './common/audit.subscriber';
+import { SnakeNamingStrategy } from './common/snake-naming.strategy';
+import { TypeOrmExceptionFilter } from './common/typeorm-exception.filter';
 import { AuthModule } from './auth/auth.module';
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
+import { CatalogoModule } from './catalogo/catalogo.module';
+import { CategoriasModule } from './categorias/categorias.module';
+import { ClientesModule } from './clientes/clientes.module';
+import { ComprasModule } from './compras/compras.module';
+import { MovimientosInventarioModule } from './movimientos-inventario/movimientos-inventario.module';
+import { PagosModule } from './pagos/pagos.module';
+import { ProductosModule } from './productos/productos.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
+import { VentasModule } from './ventas/ventas.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: Number.parseInt(process.env.DB_PORT ?? ''),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      entities: [__dirname + '*/**/*.entity{.ts,.js}'],
-      synchronize: true,
-      autoLoadEntities: true,
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres' as const,
+        host: config.get('DB_HOST', 'localhost'),
+        port: +config.get('DB_PORT', 5432),
+        username: config.get<string>('DB_USERNAME', 'sis257_rodapro').trim(),
+        password: config.get<string>('DB_PASSWORD', '123456'),
+        database: config.get<string>('DB_NAME', 'rodapro'),
+        autoLoadEntities: true,
+        // Solo para desarrollo: crea/ajusta las tablas a partir de las entidades.
+        synchronize: true,
+        namingStrategy: new SnakeNamingStrategy(),
+        subscribers: [AuditSubscriber],
+      }),
     }),
-    CategoriasModule,
+    AuthModule,
     UsuariosModule,
+    CategoriasModule,
     ProductosModule,
     ClientesModule,
-    PagosModule,
     VentasModule,
-    AuthModule,
+    ComprasModule,
+    PagosModule,
+    MovimientosInventarioModule,
+    CatalogoModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    // Orden: primero autentica (JWT), luego valida rol.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditContextInterceptor },
+    { provide: APP_FILTER, useClass: TypeOrmExceptionFilter },
+  ],
 })
 export class AppModule {}

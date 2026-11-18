@@ -1,58 +1,48 @@
 import {
-  Column,
-  CreateDateColumn,
-  DeleteDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  Check, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Relation,
 } from 'typeorm';
+import { BaseAuditEntity } from '../../common/base-audit.entity';
+import { decimalTransformer } from '../../common/transformers';
 import { Categoria } from '../../categorias/entities/categoria.entity';
 
 @Entity('productos')
-export class Producto {
-  @PrimaryGeneratedColumn('identity', { name: 'id_producto' })
+@Check('ck_productos_stock_no_negativo', '"stock" >= 0')
+@Check('ck_productos_precios_no_negativos', '"precio_compra" >= 0 AND "precio_venta" >= 0')
+export class Producto extends BaseAuditEntity {
+  @PrimaryGeneratedColumn({ name: 'id_producto' })
   id: number;
 
-  @Column('varchar', { length: 50 })
+  @Column({ name: 'id_categoria', type: 'int' })
+  idCategoria: number;
+
+  @ManyToOne(() => Categoria, (c) => c.productos, { nullable: false })
+  @JoinColumn({ name: 'id_categoria' })
+  categoria: Relation<Categoria>;
+
+  @Column({ type: 'varchar', length: 50, unique: true })
   codigo: string;
 
-  @Column('varchar', { length: 150 })
+  @Column({ type: 'varchar', length: 150 })
   nombre: string;
 
-  @Column('varchar', { length: 255 })
-  descripcion: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  descripcion: string | null;
 
-  @Column('varchar', { length: 100 })
-  marca: string;
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  marca: string | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'precio_compra' })
+  @Column({ type: 'varchar', length: 30, default: 'UNIDAD' })
+  unidadMedida: string;
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, transformer: decimalTransformer })
   precioCompra: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'precio_venta' })
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, transformer: decimalTransformer })
   precioVenta: number;
 
   @Column({ type: 'int', default: 0 })
   stock: number;
 
-  @Column({ type: 'int', default: 0, name: 'stock_minimo' })
+  @Column({ type: 'int', default: 0 })
   stockMinimo: number;
-
-  @Column('boolean', { default: true })
-  estado: boolean;
-
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  fechaCreacion: Date;
-
-  @UpdateDateColumn({ name: 'fecha_modificacion' })
-  fechaModificacion: Date;
-
-  @DeleteDateColumn({ name: 'fecha_eliminacion' })
-  fechaEliminacion: Date;
-
-  @ManyToOne(() => Categoria, categoria => categoria.productos)
-  @JoinColumn({ name: 'id_categoria', referencedColumnName: 'id' })
-  categoria: Categoria;
-
 }
